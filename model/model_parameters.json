@@ -1,0 +1,1 @@
+{"classifier": {"C": 0.1, "gamma": "scale", "kernel": "linear"}, "regressor": {"C": 100, "epsilon": 0.5, "gamma": "auto", "kernel": "sigmoid"}}
