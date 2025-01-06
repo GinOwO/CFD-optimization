@@ -40,6 +40,7 @@ class FOAM:
 
     @staticmethod
     def run_simple(run_path: Path, case_uuid: str) -> bool:
+        print(run_path)
         result = FOAM.exec(["simpleFoam", "-case", run_path], run_path)
         return result.returncode == 0
 

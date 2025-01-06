@@ -38,7 +38,6 @@ from typing import List
 
 import matplotlib.pyplot as plt
 import numpy as np
-import math
 
 
 def cst2coords(wl: List[float], wu: List[float], dz: float, N: int) -> np.ndarray:
