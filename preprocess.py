@@ -16,7 +16,7 @@ class NACACoords:
                     continue
                 x.append(float(coords[0]))
                 y.append(float(coords[1]))
-        self.m_coords = np.array([x, y])
+        self.m_coords = np.column_stack((x, y))
 
     def get_coords(self) -> np.ndarray:
         return self.m_coords
