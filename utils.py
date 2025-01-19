@@ -1,7 +1,10 @@
 import re
+import shutil
 import subprocess
-from pathlib import Path
 from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -40,7 +43,6 @@ class FOAM:
 
     @staticmethod
     def run_simple(run_path: Path, case_uuid: str) -> bool:
-        print(run_path)
         result = FOAM.exec(["simpleFoam", "-case", run_path], run_path)
         return result.returncode == 0
 
@@ -81,18 +83,56 @@ class FOAM:
     @staticmethod
     def read_force_coefficients(run_path: Path):
         force_coefficients_path = (
-            run_path / "postProcessing/forceCoeffs/0/coefficient.dat"
+            run_path / "postProcessing/forceCoeffs/0/forceCoeffs.dat"
         )
-        df = pd.read_csv(force_coefficients_path, skiprows=12, sep="\t")
+        df = pd.read_csv(force_coefficients_path, skiprows=8, sep="\t")
         df.columns = [column_name.strip() for column_name in df.columns]
         return df
 
 
 @dataclass
-class Param:
+class Parameters:
     run_name: str
     run_path: Path
     template_path: Path
     is_debug: bool
     csv_path: Path
     fluid_velocity: np.array
+
+
+def process_result(
+    x: np.array,
+    parameters: Parameters,
+    case_uuid: str,
+    run_path: Path,
+    no_clipping: bool,
+    block_mesh_result: bool,
+    check_mesh_result: bool,
+    simple_result: bool,
+    has_converged: bool,
+    cl: Optional[float] = None,
+    cd: Optional[float] = None,
+):
+    """Saving the results to a CSV.
+
+    Args:
+        x (np.array): The six CST parameters.
+        parameters (Parameters): Settings used during the simulation.
+        case_uuid (str): UUID.
+        run_path (Path): Path to the case.
+        block_mesh_result (bool): Results from blockMesh.
+        check_mesh_result (bool): Results from checkMesh.
+        simple_result (bool): Result from SIMPLE.
+        cl (Optional[float], optional): Coefficient of lift. Defaults to None.
+        cd (Optional[float], optional): Coefficient of drag. Defaults to None.
+    """
+    timestamp = datetime.now().isoformat(timespec="microseconds")
+
+    with open(parameters.csv_path, "a") as f:
+        f.write(
+            f'{timestamp},{case_uuid},"{parameters.run_name}",{x[0]},{x[1]},{x[2]},{x[3]},{x[4]},{x[5]},{no_clipping},{block_mesh_result},{check_mesh_result},{simple_result},{has_converged},{parameters.fluid_velocity[0]},{parameters.fluid_velocity[1]},{parameters.fluid_velocity[2]},{cl},{cd}\n'
+        )
+    try:
+        shutil.rmtree(run_path) if not parameters.is_debug else None
+    except Exception:
+        pass

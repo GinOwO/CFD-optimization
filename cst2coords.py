@@ -97,10 +97,14 @@ def cst2coords(wl: List[float], wu: List[float], dz: float, N: int) -> np.ndarra
 
 
 if __name__ == "__main__":
-    wl = [float(i) for i in input(f"Enter wl(space-separated): ").split()]
-    wu = [float(i) for i in input(f"Enter wu(space-separated): ").split()]
-    dz = float(input("Enter dz: "))
-    N = int(input("Enter N: "))
+    # wl = [float(i) for i in input(f"Enter wl(space-separated): ").split()]
+    # wu = [float(i) for i in input(f"Enter wu(space-separated): ").split()]
+    # dz = float(input("Enter dz: "))
+    # N = int(input("Enter N: "))
+    wu = [0.65802251, 0.92974621, 1.11012945]
+    wl = [-0.69080258, 0.22105255, -0.50046596]
+    dz = 0
+    N = 50
     coords = cst2coords(wl, wu, dz, N)
 
     print(coords)

@@ -322,3 +322,5 @@ cad
 naca
 .vscode
 output
+openfoam_cases
+test*
