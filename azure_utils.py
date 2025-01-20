@@ -1,5 +1,6 @@
 import datetime
 import os
+from typing import Dict
 
 import numpy as np
 from azure.batch import BatchServiceClient
@@ -23,23 +24,41 @@ from azure.batch.models import (
 )
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import (
+    AccountSasPermissions,
     BlobClient,
-    BlobSasPermissions as BlobPermissions,
+    BlobSasPermissions,
     BlobServiceClient,
     ContainerClient,
+    ResourceTypes,
+    generate_account_sas,
 )
 
 
-def get_container_sas_url(blob_service_client, container_name, permissions, config):
-    sas_token = blob_service_client.generate_container_shared_access_signature(
-        container_name=container_name,
-        permission=permissions,
+def get_container_sas_url(
+    blob_service_client: BlobServiceClient,
+    container_name: str,
+    permissions: BlobSasPermissions,
+    config: Dict[str, str],
+) -> str:
+    sas_token = generate_account_sas(
+        account_name=blob_service_client.account_name,
+        account_key=config["_STORAGE_ACCOUNT_KEY"],
+        resource_types=ResourceTypes(container=True, object=True),
+        permission=AccountSasPermissions(
+            read=True,
+            write=True,
+            list=True,
+            delete=True,
+            add=True,
+            create=True,
+            update=True,
+        ),
         expiry=datetime.datetime.utcnow()
         + datetime.timedelta(hours=int(config["SAS_EXPIRY_HOURS"])),
     )
-    container_sas_url = "https://{}.blob.core.windows.net/{}?{}".format(
-        config["_STORAGE_ACCOUNT_NAME"], container_name, sas_token
-    )
+
+    # Construct the container SAS URL
+    container_sas_url = f"https://{config['_STORAGE_ACCOUNT_NAME']}.blob.core.windows.net/{container_name}?{sas_token}"
 
     return container_sas_url
 
@@ -62,7 +81,9 @@ def upload_files_to_blob(
                 blob_client.upload_blob(data, overwrite=True)
 
 
-def download_blobs(container_client, local_path, prefix=""):
+def download_blobs(
+    container_client: ContainerClient, local_path: str, prefix: str = ""
+):
     """
     Downloads all blobs from the given container to a local directory.
 

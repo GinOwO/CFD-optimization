@@ -23,7 +23,7 @@ from azure.batch.models import (
     VirtualMachineConfiguration,
 )
 from azure.identity import DefaultAzureCredential
-from azure.storage.blob import BlobServiceClient, BlobSasPermissions as BlobPermissions
+from azure.storage.blob import BlobServiceClient, BlobSasPermissions
 from dotenv import dotenv_values
 
 from azure_utils import create_batch_pool, get_container_sas_url, upload_files_to_blob
@@ -31,9 +31,11 @@ from utils import Parameters
 
 if __name__ == "__main__":
     config = dotenv_values(".env")
-
+    config["_INPUT_CONTAINER_NAME"] += datetime.now().strftime("%Y%m%d%H%M%S")
+    config["_OUTPUT_CONTAINER_NAME"] += datetime.now().strftime("%Y%m%d%H%M%S")
+    config["_JOB_ID"] += datetime.now().strftime("%Y%m%d%H%M%S")
     # Create Blob Storage client
-    blob_service_client = BlobServiceClient.from_connection_string(
+    blob_service_client: BlobServiceClient = BlobServiceClient.from_connection_string(
         f"DefaultEndpointsProtocol=https;AccountName={config['_STORAGE_ACCOUNT_NAME']};AccountKey={config['_STORAGE_ACCOUNT_KEY']};EndpointSuffix=core.windows.net"
     )
 
@@ -41,6 +43,7 @@ if __name__ == "__main__":
     input_container_client = blob_service_client.get_container_client(
         config["_INPUT_CONTAINER_NAME"]
     )
+
     input_container_client.create_container(public_access="blob")
 
     # Upload the basic_template folder
@@ -71,14 +74,17 @@ if __name__ == "__main__":
     output_container_sas_url = get_container_sas_url(
         blob_service_client,
         config["_OUTPUT_CONTAINER_NAME"],
-        BlobPermissions.WRITE,
+        BlobSasPermissions(read=True, write=True, delete=True, list=True),
         config,
     )
 
     # Create Batch client
-    credential = DefaultAzureCredential()
+    credentials = batch_auth.SharedKeyCredentials(
+        config["_BATCH_ACCOUNT_NAME"], config["_BATCH_ACCOUNT_KEY"]
+    )
+
     batch_client = BatchServiceClient(
-        credential, batch_url=config["_BATCH_ACCOUNT_URL"]
+        credentials, batch_url=config["_BATCH_ACCOUNT_URL"]
     )
 
     # # Create the pool
@@ -128,40 +134,42 @@ if __name__ == "__main__":
             id=f"task_{i}",
             command_line=command_line,
             resource_files=[
+                # Reference the uploaded files using http_url and file_path
                 ResourceFile(
-                    file_path="basic_template",  # Destination path within the task working directory
-                    blob_prefix="basic_template",
-                    container_name=config["_INPUT_CONTAINER_NAME"],
+                    http_url=blob_service_client.get_blob_client(
+                        config["_INPUT_CONTAINER_NAME"], "basic_template"
+                    ).url,
+                    file_path="basic_template",  # Destination path on the worker node
                 ),
                 ResourceFile(
+                    http_url=blob_service_client.get_blob_client(
+                        config["_INPUT_CONTAINER_NAME"], "main.py"
+                    ).url,
                     file_path="main.py",
-                    blob_prefix="main.py",
-                    container_name=config["_INPUT_CONTAINER_NAME"],
                 ),
                 ResourceFile(
+                    http_url=blob_service_client.get_blob_client(
+                        config["_INPUT_CONTAINER_NAME"], "utils.py"
+                    ).url,
                     file_path="utils.py",
-                    blob_prefix="utils.py",
-                    container_name=config["_INPUT_CONTAINER_NAME"],
                 ),
                 ResourceFile(
+                    http_url=blob_service_client.get_blob_client(
+                        config["_INPUT_CONTAINER_NAME"], "cst2coords.py"
+                    ).url,
                     file_path="cst2coords.py",
-                    blob_prefix="cst2coords.py",
-                    container_name=config["_INPUT_CONTAINER_NAME"],
                 ),
                 ResourceFile(
+                    http_url=blob_service_client.get_blob_client(
+                        config["_INPUT_CONTAINER_NAME"], "foil_mesher.py"
+                    ).url,
                     file_path="foil_mesher.py",
-                    blob_prefix="foil_mesher.py",
-                    container_name=config["_INPUT_CONTAINER_NAME"],
                 ),
                 ResourceFile(
+                    http_url=blob_service_client.get_blob_client(
+                        config["_INPUT_CONTAINER_NAME"], ".env"
+                    ).url,
                     file_path=".env",
-                    blob_prefix=".env",
-                    container_name=config["_INPUT_CONTAINER_NAME"],
-                ),
-                ResourceFile(
-                    file_path="azure_utils.py",
-                    blob_prefix="azure_utils.py",
-                    container_name=config["_INPUT_CONTAINER_NAME"],
                 ),
             ],
             output_files=[
