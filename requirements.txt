@@ -4,7 +4,7 @@ azure-batch==6.0.0
 azure-common==1.1.28
 azure-core==1.32.0
 azure-identity==1.19.0
-azure-storage-blob==1.4.0
+azure-storage-blob==12.13.0
 azure-storage-common==1.4.2
 certifi==2024.12.14
 cffi==1.17.1
