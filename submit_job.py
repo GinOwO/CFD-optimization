@@ -32,7 +32,6 @@ from utils import Parameters
 if __name__ == "__main__":
     config = dotenv_values(".env")
     config["_INPUT_CONTAINER_NAME"] += datetime.now().strftime("%Y%m%d%H%M%S")
-    config["_OUTPUT_CONTAINER_NAME"] += datetime.now().strftime("%Y%m%d%H%M%S")
     config["_JOB_ID"] += datetime.now().strftime("%Y%m%d%H%M%S")
     # Create Blob Storage client
     blob_service_client: BlobServiceClient = BlobServiceClient.from_connection_string(
@@ -120,7 +119,6 @@ if __name__ == "__main__":
     pop_size = int(config["_POP_SIZE"])
     max_iter = int(config["_MAX_ITER"])
     for i in range(pop_size):
-        # Each task will run the optimize function with a different set of initial parameters
         initial_x = np.array([np.random.uniform(low, high) for low, high in bounds])
         initial_x_str = ",".join(map(str, initial_x))
 
@@ -129,17 +127,15 @@ if __name__ == "__main__":
         bounds_str = str(bounds)
         command_line = f'python3 -c "import numpy as np; from main import run_distributed; result = run_distributed(\\"{config["SCHEDULER_ADDRESS"]}\\", Parameters({parameters_str}), {bounds_str}, {1}, {max_iter}); print(result)"'
 
-        # Create the task
         task = TaskAddParameter(
             id=f"task_{i}",
             command_line=command_line,
             resource_files=[
-                # Reference the uploaded files using http_url and file_path
                 ResourceFile(
                     http_url=blob_service_client.get_blob_client(
                         config["_INPUT_CONTAINER_NAME"], "basic_template"
                     ).url,
-                    file_path="basic_template",  # Destination path on the worker node
+                    file_path="basic_template",
                 ),
                 ResourceFile(
                     http_url=blob_service_client.get_blob_client(
