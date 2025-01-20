@@ -10,7 +10,6 @@ from azure.batch.models import (
     ElevationLevel,
     ImageReference,
     JobAddParameter,
-    NodeAgentSkuId,
     OutputFile,
     OutputFileBlobContainerDestination,
     OutputFileUploadCondition,
