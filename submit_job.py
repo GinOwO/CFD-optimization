@@ -122,15 +122,14 @@ if __name__ == "__main__":
             id=f"task_{i}",
             command_line=command_line,
             resource_files=[
-                # Reference the uploaded files using http_url generated from azure function
                 ResourceFile(
                     http_url=get_container_sas_url(
                         blob_service_client,
                         config["_INPUT_CONTAINER_NAME"],
                         config,
                     )
-                    + "/basic_template",
-                    file_path="basic_template",  # Destination path within the task working directory
+                    + "/basic_template.tar.gz",
+                    file_path="basic_template.tar.gz",
                 ),
                 ResourceFile(
                     http_url=get_container_sas_url(
