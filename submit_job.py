@@ -33,6 +33,7 @@ if __name__ == "__main__":
     config = dotenv_values(".env")
     config["_INPUT_CONTAINER_NAME"] += datetime.now().strftime("%Y%m%d%H%M%S")
     config["_JOB_ID"] += datetime.now().strftime("%Y%m%d%H%M%S")
+    config["_PROJECT_ROOT_DIR"] = str(Path(config["_PROJECT_ROOT_DIR"]).resolve())
     # Create Blob Storage client
     blob_service_client: BlobServiceClient = BlobServiceClient.from_connection_string(
         f"DefaultEndpointsProtocol=https;AccountName={config['_STORAGE_ACCOUNT_NAME']};AccountKey={config['_STORAGE_ACCOUNT_KEY']};EndpointSuffix=core.windows.net"
@@ -52,22 +53,19 @@ if __name__ == "__main__":
         prefix="basic_template",
     )
 
-    # Upload main.py, utils.py, cst2coords.py, and foil_mesher.py
     for file in [
         "main.py",
         "utils.py",
         "cst2coords.py",
         "foil_mesher.py",
         "azure_utils.py",
+        ".env",
     ]:
         upload_files_to_blob(
-            input_container_client, config["_PROJECT_ROOT_DIR"], prefix=file
+            input_container_client,
+            config["_PROJECT_ROOT_DIR"] + f"/{file}",
+            prefix="",
         )
-
-    # Upload .env
-    upload_files_to_blob(
-        input_container_client, config["_PROJECT_ROOT_DIR"], prefix=".env"
-    )
 
     # Get output container SAS URL
     output_container_sas_url = get_container_sas_url(

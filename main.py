@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 import uuid
@@ -14,6 +15,23 @@ from foil_mesher import meshify
 from utils import FOAM, Parameters, process_result
 
 
+class Log:
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(Log, cls).__new__(cls)
+            cls._instance.logger = logging.getLogger("main")
+            cls._instance.logger.setLevel(logging.DEBUG)
+            cls._instance.logger.addHandler(logging.FileHandler("log.log"))
+        return cls._instance
+
+    @staticmethod
+    def info(msg):
+        Log()._instance.logger.info
+        print(msg)
+
+
 def optimize(x: np.array, parameters: Parameters) -> float:
     """Optimization function.
 
@@ -26,7 +44,7 @@ def optimize(x: np.array, parameters: Parameters) -> float:
     """
 
     case_uuid = str(uuid.uuid4()) if not parameters.is_debug else parameters.run_name
-    print(f"Running case {case_uuid} with {x}")
+    Log.log(f"Running case {case_uuid} with {x}")
 
     wu = x[0:3]
     wl = x[3:6]
@@ -53,7 +71,7 @@ def optimize(x: np.array, parameters: Parameters) -> float:
     top_bottom_difference = top_section[:, 1] - bot_section[:, 1]
 
     if (top_bottom_difference < 0).any():
-        print("Airfoil clipping detected")
+        Log.log("Airfoil clipping detected")
         process_result(
             x=x,
             parameters=parameters,
@@ -77,7 +95,7 @@ def optimize(x: np.array, parameters: Parameters) -> float:
     check_mesh_result = FOAM.run_checkmesh(run_path=run_path)
 
     if not (block_mesh_result and check_mesh_result):
-        print(
+        Log.log(
             f"Encountered error. Skipping {case_uuid}. blockMesh: {block_mesh_result}. checkMesh: {check_mesh_result}"
         )
         process_result(
@@ -102,7 +120,7 @@ def optimize(x: np.array, parameters: Parameters) -> float:
     simple_result = FOAM.run_simple(run_path.resolve(), case_uuid)
 
     if not simple_result:
-        print(f"Encountered error with SIMPLE. Skipping {case_uuid}.")
+        Log.log(f"Encountered error with SIMPLE. Skipping {case_uuid}.")
         process_result(
             x=x,
             parameters=parameters,
@@ -124,7 +142,7 @@ def optimize(x: np.array, parameters: Parameters) -> float:
 
     converged_std_cl_cd_ratio = df[df["# Time"] > 1500]["cl_cd_ratio"].std()
     if converged_std_cl_cd_ratio > 1.0:
-        print(f"Solver failed to converge: std = {converged_std_cl_cd_ratio}")
+        Log.log(f"Solver failed to converge: std = {converged_std_cl_cd_ratio}")
         process_result(
             x=x,
             parameters=parameters,
@@ -142,11 +160,11 @@ def optimize(x: np.array, parameters: Parameters) -> float:
 
     lift_drag_ratio = df["cl_cd_ratio"].iloc[-1]
 
-    print(f"Got {lift_drag_ratio}")
-    print(f"Successfully ran: {case_uuid} - {lift_drag_ratio}")
+    Log.log(f"Got {lift_drag_ratio}")
+    Log.log(f"Successfully ran: {case_uuid} - {lift_drag_ratio}")
 
     if df["Cd"].iloc[-1] < 0:
-        print(f"Got {df['Cd'].iloc[-1]}: penalizing.")
+        Log.log(f"Got {df['Cd'].iloc[-1]}: penalizing.")
 
         process_result(
             x=x,
@@ -186,8 +204,8 @@ def run_distributed(scheduler_address, parameters, bounds, pop_size, max_iter):
     """
 
     client = Client(address=scheduler_address)  # Connect to the Dask cluster
-    print(f"Connected to Dask scheduler at {scheduler_address}")
-    print(client)
+    Log.log(f"Connected to Dask scheduler at {scheduler_address}")
+    Log.log(client)
 
     x0 = [
         list(x)
@@ -214,7 +232,7 @@ def run_distributed(scheduler_address, parameters, bounds, pop_size, max_iter):
     )
 
     client.close()
-    print(result)
+    Log.log(result)
     return result
 
 

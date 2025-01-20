@@ -68,17 +68,31 @@ def upload_files_to_blob(
 ):
     """
     Uploads files from a local path to Azure Blob Storage.
+    If the local path is a directory, it uploads all files in the directory.
+    If the local path is a file, it uploads the single file.
     """
-    for root, _, files in os.walk(local_path):
-        for file in files:
-            local_file_path = os.path.join(root, file)
-            relative_path = os.path.relpath(local_file_path, local_path)
-            blob_name = os.path.join(prefix, relative_path).replace("\\", "/")
-            blob_client = container_client.get_blob_client(blob_name)
+    if os.path.isdir(local_path):
+        for root, _, files in os.walk(local_path):
+            for file in files:
+                local_file_path = os.path.join(root, file)
+                relative_path = os.path.relpath(local_file_path, local_path)
+                blob_name = os.path.join(prefix, relative_path).replace("\\", "/")
+                blob_client = container_client.get_blob_client(blob_name)
 
-            print(f"Uploading {local_file_path} to {blob_name}...")
-            with open(local_file_path, "rb") as data:
-                blob_client.upload_blob(data, overwrite=True)
+                print(f"Uploading {local_file_path} to {blob_name}...")
+                with open(local_file_path, "rb") as data:
+                    blob_client.upload_blob(data, overwrite=True)
+    elif os.path.isfile(local_path):
+        blob_name = os.path.join(prefix, os.path.basename(local_path)).replace(
+            "\\", "/"
+        )
+        blob_client = container_client.get_blob_client(blob_name)
+
+        print(f"Uploading {local_path} to {blob_name}...")
+        with open(local_path, "rb") as data:
+            blob_client.upload_blob(data, overwrite=True)
+    else:
+        print(f"Error: Invalid path: {local_path}")
 
 
 def download_blobs(
