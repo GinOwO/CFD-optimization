@@ -25,7 +25,7 @@ from azure.batch.models import (
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import (
     BlobClient,
-    BlobPermissions,
+    BlobSasPermissions as BlobPermissions,
     BlobServiceClient,
     ContainerClient,
 )

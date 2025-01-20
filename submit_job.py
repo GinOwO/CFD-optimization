@@ -10,7 +10,6 @@ from azure.batch.models import (
     ElevationLevel,
     ImageReference,
     JobAddParameter,
-    NodeAgentSkuId,
     OutputFile,
     OutputFileBlobContainerDestination,
     OutputFileDestination,
@@ -24,7 +23,7 @@ from azure.batch.models import (
     VirtualMachineConfiguration,
 )
 from azure.identity import DefaultAzureCredential
-from azure.storage.blob import BlobPermissions, BlobServiceClient
+from azure.storage.blob import BlobServiceClient, BlobSasPermissions as BlobPermissions
 from dotenv import dotenv_values
 
 from azure_utils import create_batch_pool, get_container_sas_url, upload_files_to_blob
