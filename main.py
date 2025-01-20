@@ -203,7 +203,7 @@ def run_distributed(scheduler_address, parameters, bounds, pop_size, max_iter):
     Runs the differential evolution optimization in a distributed manner using Dask.
     """
 
-    client = Client(address=scheduler_address)  # Connect to the Dask cluster
+    client = Client(address=scheduler_address)
     Log.log(f"Connected to Dask scheduler at {scheduler_address}")
     Log.log(client)
 

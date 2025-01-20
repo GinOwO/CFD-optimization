@@ -46,13 +46,6 @@ if __name__ == "__main__":
 
     input_container_client.create_container(public_access="blob")
 
-    # Upload the basic_template folder
-    upload_files_to_blob(
-        input_container_client,
-        config["_PROJECT_ROOT_DIR"] + "/basic_template",
-        prefix="basic_template",
-    )
-
     for file in [
         "main.py",
         "utils.py",
@@ -60,6 +53,7 @@ if __name__ == "__main__":
         "foil_mesher.py",
         "azure_utils.py",
         ".env",
+        "basic_template.tar.gz",
     ]:
         upload_files_to_blob(
             input_container_client,
@@ -71,7 +65,6 @@ if __name__ == "__main__":
     output_container_sas_url = get_container_sas_url(
         blob_service_client,
         config["_OUTPUT_CONTAINER_NAME"],
-        BlobSasPermissions(read=True, write=True, delete=True, list=True),
         config,
     )
 
@@ -123,46 +116,65 @@ if __name__ == "__main__":
         # Serialize the parameters for the command line
         parameters_str = f"run_name='{run_parameters.run_name}',run_path='{run_parameters.run_path}',template_path='{run_parameters.template_path}',is_debug={run_parameters.is_debug},csv_path='{run_parameters.csv_path}',fluid_velocity=np.array({run_parameters.fluid_velocity.tolist()})"
         bounds_str = str(bounds)
-        command_line = f'python3 -c "import numpy as np; from main import run_distributed; result = run_distributed(\\"{config["SCHEDULER_ADDRESS"]}\\", Parameters({parameters_str}), {bounds_str}, {1}, {max_iter}); print(result)"'
+        command_line = f'tar xzvf basic_template.tar.gz;python3 -c "import numpy as np; from main import run_distributed; result = run_distributed(\\"{config["SCHEDULER_ADDRESS"]}\\", Parameters({parameters_str}), {bounds_str}, {1}, {max_iter}); print(result)"'
 
         task = TaskAddParameter(
             id=f"task_{i}",
             command_line=command_line,
             resource_files=[
+                # Reference the uploaded files using http_url generated from azure function
                 ResourceFile(
-                    http_url=blob_service_client.get_blob_client(
-                        config["_INPUT_CONTAINER_NAME"], "basic_template"
-                    ).url,
-                    file_path="basic_template",
+                    http_url=get_container_sas_url(
+                        blob_service_client,
+                        config["_INPUT_CONTAINER_NAME"],
+                        config,
+                    )
+                    + "/basic_template",
+                    file_path="basic_template",  # Destination path within the task working directory
                 ),
                 ResourceFile(
-                    http_url=blob_service_client.get_blob_client(
-                        config["_INPUT_CONTAINER_NAME"], "main.py"
-                    ).url,
+                    http_url=get_container_sas_url(
+                        blob_service_client,
+                        config["_INPUT_CONTAINER_NAME"],
+                        config,
+                    )
+                    + "/main.py",
                     file_path="main.py",
                 ),
                 ResourceFile(
-                    http_url=blob_service_client.get_blob_client(
-                        config["_INPUT_CONTAINER_NAME"], "utils.py"
-                    ).url,
+                    http_url=get_container_sas_url(
+                        blob_service_client,
+                        config["_INPUT_CONTAINER_NAME"],
+                        config,
+                    )
+                    + "/utils.py",
                     file_path="utils.py",
                 ),
                 ResourceFile(
-                    http_url=blob_service_client.get_blob_client(
-                        config["_INPUT_CONTAINER_NAME"], "cst2coords.py"
-                    ).url,
+                    http_url=get_container_sas_url(
+                        blob_service_client,
+                        config["_INPUT_CONTAINER_NAME"],
+                        config,
+                    )
+                    + "/cst2coords.py",
                     file_path="cst2coords.py",
                 ),
                 ResourceFile(
-                    http_url=blob_service_client.get_blob_client(
-                        config["_INPUT_CONTAINER_NAME"], "foil_mesher.py"
-                    ).url,
+                    http_url=get_container_sas_url(
+                        blob_service_client,
+                        config["_INPUT_CONTAINER_NAME"],
+                        config,
+                    )
+                    + "/foil_mesher.py",
                     file_path="foil_mesher.py",
                 ),
                 ResourceFile(
-                    http_url=blob_service_client.get_blob_client(
-                        config["_INPUT_CONTAINER_NAME"], ".env"
-                    ).url,
+                    http_url=get_container_sas_url(
+                        blob_service_client,
+                        config["_INPUT_CONTAINER_NAME"],
+                        config,
+                    )
+                    + "/.env",
                     file_path=".env",
                 ),
             ],

@@ -37,7 +37,6 @@ from azure.storage.blob import (
 def get_container_sas_url(
     blob_service_client: BlobServiceClient,
     container_name: str,
-    permissions: BlobSasPermissions,
     config: Dict[str, str],
 ) -> str:
     sas_token = generate_account_sas(
@@ -53,12 +52,11 @@ def get_container_sas_url(
             create=True,
             update=True,
         ),
-        expiry=datetime.datetime.utcnow()
+        expiry=datetime.datetime.now(datetime.timezone.utc)
         + datetime.timedelta(hours=int(config["SAS_EXPIRY_HOURS"])),
     )
 
-    # Construct the container SAS URL
-    container_sas_url = f"https://{config['_STORAGE_ACCOUNT_NAME']}.blob.core.windows.net/{container_name}?{sas_token}"
+    container_sas_url = f"https://{config['_STORAGE_ACCOUNT_NAME']}.blob.core.windows.net/{container_name}"
 
     return container_sas_url
 
