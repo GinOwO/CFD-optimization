@@ -1,3 +1,4 @@
+import os
 import shutil
 import uuid
 from pathlib import Path
@@ -5,6 +6,7 @@ from typing import List
 
 import numpy as np
 import pandas as pd
+from distributed import Client
 from scipy.optimize import differential_evolution
 
 from cst2coords import cst2coords
@@ -31,8 +33,12 @@ def optimize(x: np.array, parameters: Parameters) -> float:
     dz = 0
     N = 50
 
-    run_path = parameters.run_path / case_uuid
-    template_path = parameters.template_path
+    run_path = (
+        Path(os.environ["AZ_BATCH_TASK_WORKING_DIR"]) / parameters.run_path / case_uuid
+    )  # Make sure OpenFOAM files are created in the working directory
+    template_path = (
+        Path(os.environ["AZ_BATCH_TASK_WORKING_DIR"]) / parameters.template_path
+    )  # Make sure the template is copied to the working directory
 
     airfoil_coordinates = cst2coords(wl, wu, dz, N)
     x: List[float] = []
@@ -174,40 +180,43 @@ def optimize(x: np.array, parameters: Parameters) -> float:
     return -np.abs(lift_drag_ratio)
 
 
-def main():
-    run_parameters = Parameters(
-        run_name="5_degree_AoA_fixed_nu_tilda_reduced_yplus_penalizing_neg_cd_fixed_AoA_angles",
-        run_path=Path("openfoam_cases"),
-        template_path=Path("basic_template"),
-        is_debug=False,
-        csv_path=Path("results/csv/results.csv"),
-        fluid_velocity=np.array([99.6194698092, 8.7155742748, 0]),
-    )
+def run_distributed(scheduler_address, parameters, bounds, pop_size, max_iter):
+    """
+    Runs the differential evolution optimization in a distributed manner using Dask.
+    """
 
-    run_parameters.csv_path.parent.mkdir(exist_ok=True, parents=True)
+    client = Client(address=scheduler_address)  # Connect to the Dask cluster
+    print(f"Connected to Dask scheduler at {scheduler_address}")
+    print(client)
 
-    bounds = [
-        (-1.4400, -0.1027),
-        (-1.2552, 1.2923),
-        (-0.8296, 0.4836),
-        (0.0359, 1.3246),
-        (-0.1423, 1.4558),
-        (-0.3631, 1.4440),
+    x0 = [
+        list(x)
+        for x in np.random.uniform(
+            low=[b[0] for b in bounds],
+            high=[b[1] for b in bounds],
+            size=(pop_size, len(bounds)),
+        )
     ]
 
-    differential_evolution(
+    # Continue with differential_evolution using the best initial population member
+    result = differential_evolution(
         optimize,
         bounds,
         strategy="best1bin",
-        maxiter=100000,
-        popsize=60,
+        maxiter=max_iter,
+        popsize=1,
         tol=1e-1,
-        workers=12,
+        workers=client.map,
         seed=42,
-        args=(run_parameters,),
+        args=(parameters,),
         updating="deferred",
+        x0=x0,
     )
+
+    client.close()
+    print(result)
+    return result
 
 
 if __name__ == "__main__":
-    main()
+    pass
