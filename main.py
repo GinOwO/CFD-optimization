@@ -1,13 +1,12 @@
 import logging
 import os
+import random
 import shutil
 import uuid
 from pathlib import Path
 from typing import List
 
 import numpy as np
-import pandas as pd
-from distributed import Client
 from scipy.optimize import differential_evolution
 
 from cst2coords import cst2coords
@@ -15,21 +14,12 @@ from foil_mesher import meshify
 from utils import FOAM, Parameters, process_result
 
 
-class Log:
-    _instance = None
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+log = logging.getLogger()
 
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(Log, cls).__new__(cls)
-            cls._instance.logger = logging.getLogger("main")
-            cls._instance.logger.setLevel(logging.DEBUG)
-            cls._instance.logger.addHandler(logging.FileHandler("log.log"))
-        return cls._instance
-
-    @staticmethod
-    def info(msg):
-        Log()._instance.logger.info
-        print(msg)
+log.info("Init")
 
 
 def optimize(x: np.array, parameters: Parameters) -> float:
@@ -44,7 +34,7 @@ def optimize(x: np.array, parameters: Parameters) -> float:
     """
 
     case_uuid = str(uuid.uuid4()) if not parameters.is_debug else parameters.run_name
-    Log.log(f"Running case {case_uuid} with {x}")
+    log.info(f"Running case {case_uuid} with {x}")
 
     wu = x[0:3]
     wl = x[3:6]
@@ -53,10 +43,13 @@ def optimize(x: np.array, parameters: Parameters) -> float:
 
     run_path = (
         Path(os.environ["AZ_BATCH_TASK_WORKING_DIR"]) / parameters.run_path / case_uuid
-    )  # Make sure OpenFOAM files are created in the working directory
+    )
     template_path = (
         Path(os.environ["AZ_BATCH_TASK_WORKING_DIR"]) / parameters.template_path
-    )  # Make sure the template is copied to the working directory
+    )
+
+    log.info(f"Run path: {run_path}")
+    log.info(f"Template path: {template_path}")
 
     airfoil_coordinates = cst2coords(wl, wu, dz, N)
     x: List[float] = []
@@ -71,7 +64,7 @@ def optimize(x: np.array, parameters: Parameters) -> float:
     top_bottom_difference = top_section[:, 1] - bot_section[:, 1]
 
     if (top_bottom_difference < 0).any():
-        Log.log("Airfoil clipping detected")
+        log.info("Airfoil clipping detected")
         process_result(
             x=x,
             parameters=parameters,
@@ -95,7 +88,7 @@ def optimize(x: np.array, parameters: Parameters) -> float:
     check_mesh_result = FOAM.run_checkmesh(run_path=run_path)
 
     if not (block_mesh_result and check_mesh_result):
-        Log.log(
+        log.info(
             f"Encountered error. Skipping {case_uuid}. blockMesh: {block_mesh_result}. checkMesh: {check_mesh_result}"
         )
         process_result(
@@ -120,7 +113,7 @@ def optimize(x: np.array, parameters: Parameters) -> float:
     simple_result = FOAM.run_simple(run_path.resolve(), case_uuid)
 
     if not simple_result:
-        Log.log(f"Encountered error with SIMPLE. Skipping {case_uuid}.")
+        log.info(f"Encountered error with SIMPLE. Skipping {case_uuid}.")
         process_result(
             x=x,
             parameters=parameters,
@@ -142,7 +135,7 @@ def optimize(x: np.array, parameters: Parameters) -> float:
 
     converged_std_cl_cd_ratio = df[df["# Time"] > 1500]["cl_cd_ratio"].std()
     if converged_std_cl_cd_ratio > 1.0:
-        Log.log(f"Solver failed to converge: std = {converged_std_cl_cd_ratio}")
+        log.info(f"Solver failed to converge: std = {converged_std_cl_cd_ratio}")
         process_result(
             x=x,
             parameters=parameters,
@@ -160,11 +153,11 @@ def optimize(x: np.array, parameters: Parameters) -> float:
 
     lift_drag_ratio = df["cl_cd_ratio"].iloc[-1]
 
-    Log.log(f"Got {lift_drag_ratio}")
-    Log.log(f"Successfully ran: {case_uuid} - {lift_drag_ratio}")
+    log.info(f"Got {lift_drag_ratio}")
+    log.info(f"Successfully ran: {case_uuid} - {lift_drag_ratio}")
 
     if df["Cd"].iloc[-1] < 0:
-        Log.log(f"Got {df['Cd'].iloc[-1]}: penalizing.")
+        log.info(f"Got {df['Cd'].iloc[-1]}: penalizing.")
 
         process_result(
             x=x,
@@ -198,43 +191,55 @@ def optimize(x: np.array, parameters: Parameters) -> float:
     return -np.abs(lift_drag_ratio)
 
 
-def run_distributed(scheduler_address, parameters, bounds, pop_size, max_iter):
+def run_distributed(
+    parameters: Parameters, bounds: List[int], pop_size: int, max_iter: int
+):
     """
     Runs the differential evolution optimization in a distributed manner using Dask.
     """
+    seed = random.randint(0, 1000)
+    log.info(f"Seed: {seed}")
+    parameters.csv_path = Path(str(parameters.csv_path).replace(".csv", f"{seed}.csv"))
+    log.info(f"Parameters: {parameters}")
 
-    client = Client(address=scheduler_address)
-    Log.log(f"Connected to Dask scheduler at {scheduler_address}")
-    Log.log(client)
-
-    x0 = [
-        list(x)
-        for x in np.random.uniform(
-            low=[b[0] for b in bounds],
-            high=[b[1] for b in bounds],
-            size=(pop_size, len(bounds)),
-        )
-    ]
-
-    # Continue with differential_evolution using the best initial population member
     result = differential_evolution(
-        optimize,
-        bounds,
+        func=optimize,
+        bounds=bounds,
         strategy="best1bin",
         maxiter=max_iter,
-        popsize=1,
+        popsize=pop_size,
         tol=1e-1,
-        workers=client.map,
-        seed=42,
+        workers=2,
+        seed=seed,
         args=(parameters,),
         updating="deferred",
-        x0=x0,
     )
 
-    client.close()
-    Log.log(result)
+    log.info(result)
     return result
 
 
 if __name__ == "__main__":
-    pass
+    run_parameters = Parameters(
+        run_name="5_degree_AoA_fixed_nu_tilda_reduced_yplus_penalizing_neg_cd_fixed_AoA_angles",
+        run_path=Path("openfoam_cases"),
+        template_path=Path("basic_template"),
+        is_debug=False,
+        csv_path=Path("results.csv"),
+        fluid_velocity=np.array([99.6194698092, 8.7155742748, 0]),
+    )
+
+    bounds = [
+        (-1.4400, -0.1027),
+        (-1.2552, 1.2923),
+        (-0.8296, 0.4836),
+        (0.0359, 1.3246),
+        (-0.1423, 1.4558),
+        (-0.3631, 1.4440),
+    ]
+
+    pop_size = 1
+    max_iter = 10000
+    os.environ["AZ_BATCH_TASK_WORKING_DIR"] = "."
+    os.environ["AZ_BATCH_NODE_ID"] = "0"
+    run_distributed(run_parameters, bounds, pop_size, max_iter)

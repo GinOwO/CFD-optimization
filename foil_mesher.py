@@ -495,7 +495,7 @@ def meshify(Coords: np.ndarray, run_path: Path):
     # Writes blockMeshDict file into system directory of current folder
     lines = []
     lines.append(
-        "/*--------------------------------*- C++ -*----------------------------------*\ \n"
+        "/*--------------------------------*- C++ -*----------------------------------*\\ \n"
     )
     lines.append("  =========                 | \n")
     lines.append(
@@ -505,7 +505,7 @@ def meshify(Coords: np.ndarray, run_path: Path):
     lines.append("    \\  /    A nd           | Version:  6 \n")
     lines.append("     \\/     M anipulation  | \n")
     lines.append(
-        "\*---------------------------------------------------------------------------*/ \n"
+        "\\*---------------------------------------------------------------------------*/ \n"
     )
     lines.append("FoamFile \n")
     lines.append("{ \n")
