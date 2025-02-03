@@ -1,3 +1,10 @@
+"""
+Merged code based on
+    https://github.com/NielsBongers/openfoam-airfoil-optimization
+
+Original License: GNU General Public License v3.0 (Same as this repository)
+"""
+
 import logging
 import os
 import random
@@ -12,7 +19,6 @@ from scipy.optimize import differential_evolution
 from cst2coords import cst2coords
 from foil_mesher import meshify
 from utils import FOAM, Parameters, process_result
-
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -195,7 +201,7 @@ def run_distributed(
     parameters: Parameters, bounds: List[int], pop_size: int, max_iter: int
 ):
     """
-    Runs the differential evolution optimization in a distributed manner using Dask.
+    Runs the differential evolution optimization.
     """
     seed = random.randint(0, 1000)
     log.info(f"Seed: {seed}")
@@ -220,6 +226,7 @@ def run_distributed(
 
 
 if __name__ == "__main__":
+    # Debug Local
     run_parameters = Parameters(
         run_name="5_degree_AoA_fixed_nu_tilda_reduced_yplus_penalizing_neg_cd_fixed_AoA_angles",
         run_path=Path("openfoam_cases"),

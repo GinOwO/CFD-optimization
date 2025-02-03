@@ -1,19 +1,22 @@
-# This is a slightly modified (didn't like the many syscalls) version of the program at
-# https://github.com/curiosityFluids/curiosityFluidsAirfoilMesher/blob/master/curiosityFluidsAirfoilMesher.py
+"""
+This is a slightly modified (didn't like the many syscalls) version of the program at
+    https://github.com/curiosityFluids/curiosityFluidsAirfoilMesher/blob/master/curiosityFluidsAirfoilMesher.py
 
-#   This program is free software: you can redistribute it and/or modify
-#   it under the terms of the GNU General Public License as published by
-#   the Free Software Foundation, either version 3 of the License, or
-#   (at your option) any later version.
+Original License:
+-----------------------------------------------------------------------------------
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
 
-#  This program is distributed in the hope that it will be useful,
-#   but WITHOUT ANY WARRANTY; without even the implied warranty of
-#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#   GNU General Public License for more details.
+ This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
 
-#   You should have received a copy of the GNU General Public License
-#   along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
 
 import math
 from pathlib import Path
