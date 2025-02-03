@@ -209,7 +209,7 @@ def run_distributed(
         maxiter=max_iter,
         popsize=pop_size,
         tol=1e-1,
-        workers=2,
+        workers=-1,
         seed=seed,
         args=(parameters,),
         updating="deferred",
